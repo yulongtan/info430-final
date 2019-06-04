@@ -71,3 +71,48 @@ BEGIN TRAN G1
         COMMIT TRAN G1
 GO
 
+----- CHECK CONSTRAINT -----
+-- No discount over 50% for ‘NEW’ phones -- 
+CREATE FUNCTION fn_NoDiscountOver50ForNewPhones()
+RETURNS INT
+AS
+BEGIN
+DECLARE @Ret INT = 0
+IF EXISTS (SELECT * 
+           FROM tblDISCOUNT_TYPE DT
+           JOIN tblDISCOUNT D ON DT.DiscountTypeID = D.DiscountTypeID
+           JOIN tblLINE_ITEM LI ON D.DiscountID = LI.DiscountID
+           JOIN tblCONDITION C ON LI.ConditionID = C.ConditionID
+           JOIN tblPRODUCT P ON LI.ProductID = P.ProductID
+           JOIN tblPRODUCT_TYPE PT ON P.ProductTypeID = PT.ProductTypeID
+           WHERE ProductTypeName = 'Phone'
+           AND Condition = 'New'
+           AND DiscountTypeName = 'Percentage'
+           AND DeductAmount > 50)
+BEGIN   
+    SET @Ret = 1
+END
+RETURN @Ret
+END
+GO
+
+-- All employees must be 16 or older --
+CREATE FUNCTION fn_EmployeeMustBeAtLeast16()
+RETURNS INT
+AS
+BEGIN
+DECLARE @Ret INT = 0
+IF EXISTS (SELECT * 
+           FROM tblEMPLOYEE 
+           WHERE EmpDOB > (SELECT GETDATE() - (365.25 * 16)))
+BEGIN 
+    SET @Ret = 1
+END
+RETURN @Ret
+END
+GO
+
+ALTER TABLE tblEMPLOYEE
+ADD CONSTRAINT CK_EmployeeAgeMustBeAtLeast16
+CHECK (dbo.fn_EmployeeMustBeAtLeast16() = 0)
+GO
