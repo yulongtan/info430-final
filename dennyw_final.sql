@@ -96,6 +96,11 @@ RETURN @Ret
 END
 GO
 
+ALTER TABLE tblLINE_ITEM
+ADD CONSTRAINT CK_NoDiscountOver50PercentOnNewPhones
+CHECK (dbo.fn_NoDiscountOver50ForNewPhones() = 0)
+GO
+
 -- All employees must be 16 or older --
 CREATE FUNCTION fn_EmployeeMustBeAtLeast16()
 RETURNS INT
