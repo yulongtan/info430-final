@@ -210,8 +210,10 @@ returns money
 as 
 begin 
   declare @ret money = (
-    select Price * Quantity
-    from tbl_LINE_ITEM
+    select (LI.Quantity * P.Price) + S.ServicePrice
+    from tbl_LINE_ITEM LI
+      join tblPRODUCT P on LI.ProductID = P.ProductID 
+      join tblSERVICE S on LI.ServiceID = S.ServiceID
     where LineItemID = @PK
   )
   return @ret
@@ -224,18 +226,19 @@ add TotalCost AS (dbo.fn_CalculateTotalCost(LineItemID))
 
 go
 
--- Calculate total sales for an emmployee as TotalSales
-create function fn_CalculateEmployeeTotalSales(@PK int)
+-- Calculate total discounts for an employee as TotalDiscounts
+create function fn_CalculateEmployeeTotalDiscounts(@PK int)
 returns money 
 as 
 begin 
   declare @ret money = (
-    select LI.Price * LI.Quantity 
+    select count(D.DiscountID)
     from tblEMPLOYEE E 
       join tblJOB J on E.EmployeeID = J.EmployeeID 
       join tblEMPLOYEE_POSITION_SHIFT EPS on J.JobID = EPS.JobID 
       join tblORDER O on EPS.EmpPosShiftID = O.EmpPosShiftID
       join tblLINE_ITEM LI on O.OrderID = LI.OrderID 
+      join tblDISCOUNT D on LI.DiscountID = D.DiscountID
   )
   return @ret
 end 
@@ -243,13 +246,16 @@ end
 go 
 
 alter table tblEMPLOYEE
-add TotalSales as (dbo.fn_CalculateEmployeeTotalSales(EmployeeID))
+add TotalDiscounts as (dbo.fn_CalculateEmployeeTotalDiscounts(EmployeeID))
+
+go
 
 --------------------------------------------------------------------------------------------------------------------------
 
 -- Views
 
--- The most phone customer in Washington
+-- The most frequent phone-buying customer in Washington
+create view FrequentWashingtonPhoneBuyer as
 select top 1 count(*) as TotalItemsBought, C.CustFname, C.CustLname
 from tblLINE_ITEM LI 
   join tblORDER O on LI.OrderID = O.OrderID
@@ -259,7 +265,10 @@ from tblLINE_ITEM LI
 where PT.ProductTypeName = 'Phone' and C.CustState = 'Washington'
 order by TotalItemsBought desc
 
+go
+
 -- All suppliers that have had 20 'iPhone 8' sold within last month
+create view iPhoneSuppliers as
 select *, count(*) as ItemsSold
 from tblSupplier S 
   join tblPRODUCT P on P.SupplierID = S.SupplierID 
