@@ -1,3 +1,6 @@
+use techstacks
+go
+
 -- Stored Procedures
 
 -- GetID Helpers
@@ -35,7 +38,7 @@ as
 declare @PTID int, @SID int
 
 exec usp_GetSupplierID
-@SuppierName = @SupplierName,
+@SupplierName = @SupplierName,
 @SupplierID = @SID output
 
 if @SID is null 
@@ -97,11 +100,13 @@ set @PositionID = (select PositionID from tblPOSITION where PositionName = @Posi
 go 
 
 create proc usp_InsertNewJob
+@EmpFname varchar(30),
+@EmpLname varchar(30),
+@EmpDOB date,
 @Salary money,
 @StartDate date,
 @EndDate date, 
-@EmployeeID int,
-@PositionID int 
+@PositionName varchar(30) 
 as 
 declare @EID int, @PID int 
 
@@ -131,7 +136,7 @@ if @PID is null
 
 begin tran t1 
 insert into tblJOB(Salary, StartDate, EndDate, EmployeeID, PositionID)
-values(@Salary, @StartDate, @EndDate, @EmployeeID, @PositionID)
+values(@Salary, @StartDate, @EndDate, @EID, @PID)
 
 if @@error <> 0
   rollback tran t1
@@ -181,8 +186,8 @@ begin
     select * 
     from tblEMPLOYEE E 
       join tblJOB J on E.EmployeeID = J.EmployeeID 
-      join tblEMPLOYEE_POSITION_SHIFT EPS on J.JobID = EPS.JobID 
-      join tblORDER O on EPS.EmpPosShiftID = O.EmpPosShiftID
+      join tblJOB_SHIFT EPS on J.JobID = EPS.JobID 
+      join tblORDER O on EPS.JobShiftID = O.JobShiftID
       join tblLINE_ITEM LI on O.OrderID = LI.OrderID 
       join tblSERVICE S on LI.ServiceID = S.ServiceID
       join tblSERVICE_TYPE ST on S.ServiceTypeID = ST.ServiceTypeID 
@@ -211,7 +216,7 @@ as
 begin 
   declare @ret money = (
     select (LI.Quantity * P.Price) + S.ServicePrice
-    from tbl_LINE_ITEM LI
+    from tblLINE_ITEM LI
       join tblPRODUCT P on LI.ProductID = P.ProductID 
       join tblSERVICE S on LI.ServiceID = S.ServiceID
     where LineItemID = @PK
@@ -235,8 +240,8 @@ begin
     select count(D.DiscountID)
     from tblEMPLOYEE E 
       join tblJOB J on E.EmployeeID = J.EmployeeID 
-      join tblEMPLOYEE_POSITION_SHIFT EPS on J.JobID = EPS.JobID 
-      join tblORDER O on EPS.EmpPosShiftID = O.EmpPosShiftID
+      join tblJOB_SHIFT EPS on J.JobID = EPS.JobID 
+      join tblORDER O on EPS.JobShiftID = O.JobShiftID
       join tblLINE_ITEM LI on O.OrderID = LI.OrderID 
       join tblDISCOUNT D on LI.DiscountID = D.DiscountID
   )
@@ -259,22 +264,69 @@ create view FrequentWashingtonPhoneBuyer as
 select top 1 count(*) as TotalItemsBought, C.CustFname, C.CustLname
 from tblLINE_ITEM LI 
   join tblORDER O on LI.OrderID = O.OrderID
-  join tblCUSTOMER C on O.CustID = C.CustID
+  join tblCUSTOMER C on O.CustomerID = C.CustomerID
   join tblPRODUCT P on LI.ProductID = P.ProductID 
   join tblPRODUCT_TYPE PT on P.ProductTypeID = PT.ProductTypeID
 where PT.ProductTypeName = 'Phone' and C.CustState = 'Washington'
+group by C.CustFname, C.CustLname
 order by TotalItemsBought desc
 
 go
 
--- All suppliers that have had 20 'iPhone 8' sold within last month
+-- All suppliers that have had 8 'iPhone 8' sold within last month
 create view iPhoneSuppliers as
-select *, count(*) as ItemsSold
+select S.SupplierID, S.SupplierName, count(*) as ItemsSold
 from tblSupplier S 
   join tblPRODUCT P on P.SupplierID = S.SupplierID 
   join tblPRODUCT_TYPE PT on P.ProductTypeID = PT.ProductTypeID 
   join tblLINE_ITEM LI on P.ProductID = LI.ProductID 
   join tblOrder O on LI.OrderID = O.OrderID
 where P.ProductName = 'iPhone 8' 
-and count(*) > 8
 and O.OrderDate > dateadd(m, -1, getdate())
+group by S.SupplierID, S.SUpplierName
+having count(*) > 8
+
+go
+
+exec usp_InsertNewProduct
+@ProductName = 'Second Best iPhone Ever',
+@ProductDesc = 'This is the second best iPhone ever!!!!',
+@ProductTypeName = 'Phone',
+@SupplierName = 'Apple',
+@Price = 600
+
+insert into tblSUPPLIER
+values ('Apple', 'This is a fruit company'),
+('Microsoft', 'This is a window cleaning company'),
+('Google', 'This is an alphabet company'),
+('Amazon', 'THis company is dedicated to saving the Amazon rainforest')
+
+insert into tblPRODUCT_TYPE
+values ('Phone', 'Used to call people, I guess'),
+('Tablet', 'Big phone without call functionality'),
+('Laptop', 'Procrastination machine'),
+('TV', 'Watch movies'),
+('Camera', 'The product that is dying because of smart phones')
+
+insert into tblSHIFT
+values ('Morning Shift', 'Rise and shine'),
+('Shitty Shift', 'The shitty one'),
+('Noon Shift', 'No lunch for u'),
+('Afternoon Shift', 'Lazy time'),
+('Night Shift', 'Are you a vampite?'),
+('Graveyard Shift', 'Existence is pain')
+
+insert into tblPOSITION
+values ('Clerk', 'Handles sales things'),
+('Technician', 'Does techy stuff'),
+('Boss man', 'You are in charge')
+
+insert into tblEMPLOYEE
+values('Obi-Wan', 'Kenobi', '1979-01-01', '1111', 'Seattle', 'WA', '98109'),
+('Anakin', 'Skywalker', '1985-01-01', '1111', 'Seattle', 'WA', '98109'),
+('Greg', 'Hay', '1970-01-01', '1111', 'Seattle', 'WA', '98109')
+
+insert into tblJOB 
+values(1, 1, 85000, '2005-01-01'),
+(2, 2, 75000, '2012-01-01'),
+(3, 3, 100000, '2018-01-01')
