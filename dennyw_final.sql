@@ -18,6 +18,7 @@ GO
 
 CREATE PROCEDURE uspInsertIntoService
 @ServName VARCHAR(30),
+@ServPrice MONEY,
 @ServDesc VARCHAR(500),
 @STName VARCHAR(30)
 AS
@@ -35,8 +36,8 @@ BEGIN
 END
 -- Explicit transaction to insert into table -- 
 BEGIN TRAN G1
-    INSERT INTO tblSERVICE (ServiceTypeID, ServiceName, ServiceDesc)
-    VALUES (@ST_ID, @ServName, @ServDesc)
+    INSERT INTO tblSERVICE (ServiceTypeID, ServiceName, ServicePrice, ServiceDesc)
+    VALUES (@ST_ID, @ServName, @ServPrice, @ServDesc)
     IF @@ERROR <> 0
         ROLLBACK TRAN G1
     ELSE
@@ -124,37 +125,59 @@ GO
 
 ----- COMPUTED COLUMNS -----
 -- Calculate total time (days) at job as JobLength in Job Table --
-CREATE FUNCTION fn_TotalTimeAtJob(@PK INT)
+CREATE FUNCTION fn_TotalTimeAtJob_Days(@PK INT)
 RETURNS INT
 AS
 BEGIN
     DECLARE @Ret INT = (
         SELECT DATEDIFF(DAY, EndDate, StartDate)
-        FROM tblEMPLOYEE_POSITION
-        WHERE EmpPosID = @PK
+        FROM tblJOB
+        WHERE JobID = @PK
     )
     RETURN @Ret
 END
 GO
 
-ALTER TABLE tblEMPLOYEE_POSITION
-ADD JobLengthInDays AS (dbo.fn_TotalTimeAtJob(EmpPosID))
+ALTER TABLE tblJOB
+ADD JobLengthInDays AS (dbo.fn_TotalTimeAtJob_Days(JobID))
 GO
 
 -- Calculate total time (hours) at shift as ShiftLength in Employee_Shift_Position Table --
-CREATE FUNCTION fn_TotalTimeAtShift(@PK INT)
+CREATE FUNCTION fn_TotalTimeAtShift_Hours(@PK INT)
 RETURNS INT
 AS
 BEGIN
     DECLARE @Ret INT = (
         SELECT DATEDIFF(HOUR, EndTime, StartTime)
-        FROM tblEMPLOYEE_POSITION_SHIFT
-        WHERE EmpPosShiftID = @PK
+        FROM tblJOB_SHIFT
+        WHERE JobShiftID = @PK
     )
     RETURN @Ret
 END
 GO
 
-ALTER TABLE tblEMPLOYEE_POSITION_SHIFT
-ADD ShiftLengthInHours AS (dbo.fn_TotalTimeAtShift(EmpPosShiftID))
-GO                                         
+ALTER TABLE tblJOB_SHIFT
+ADD ShiftLengthInHours AS (dbo.fn_TotalTimeAtShift_Hours(JobShiftID))
+GO
+
+----- VIEWS -----
+-- The top 10 most ‘profitable’ product or product that generates the most revenue --
+CREATE VIEW TopTenBestProducts AS
+SELECT TOP 10 P.ProductID, P.ProductName, SUM(P.Price * LI.Quantity) AS [Total Sales]
+FROM tblPRODUCT P 
+JOIN tblLINE_ITEM LI ON P.ProductID = LI.ProductID
+GROUP BY P.ProductID, P.ProductName
+ORDER BY [Total Sales] DESC
+GO
+
+-- All employees who have worked at their job for more than 5 years and earn more than $50,000 -- 
+CREATE VIEW SeniorEmployees AS 
+SELECT E.EmployeeID, E.EmpFname, E.EmpLname
+FROM tblEMPLOYEE E 
+JOIN tblJOB J ON E.EmployeeID = J.EmployeeID
+WHERE DATEDIFF(YEAR, J.EndDate, J.StartDate) > 5
+AND J.Salary > 50000
+GO
+
+
+
