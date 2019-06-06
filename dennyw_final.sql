@@ -121,3 +121,40 @@ ALTER TABLE tblEMPLOYEE
 ADD CONSTRAINT CK_EmployeeAgeMustBeAtLeast16
 CHECK (dbo.fn_EmployeeMustBeAtLeast16() = 0)
 GO
+
+----- COMPUTED COLUMNS -----
+-- Calculate total time (days) at job as JobLength in Job Table --
+CREATE FUNCTION fn_TotalTimeAtJob(@PK INT)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @Ret INT = (
+        SELECT DATEDIFF(DAY, EndDate, StartDate)
+        FROM tblEMPLOYEE_POSITION
+        WHERE EmpPosID = @PK
+    )
+    RETURN @Ret
+END
+GO
+
+ALTER TABLE tblEMPLOYEE_POSITION
+ADD JobLengthInDays AS (dbo.fn_TotalTimeAtJob(EmpPosID))
+GO
+
+-- Calculate total time (hours) at shift as ShiftLength in Employee_Shift_Position Table --
+CREATE FUNCTION fn_TotalTimeAtShift(@PK INT)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @Ret INT = (
+        SELECT DATEDIFF(HOUR, EndTime, StartTime)
+        FROM tblEMPLOYEE_POSITION_SHIFT
+        WHERE EmpPosShiftID = @PK
+    )
+    RETURN @Ret
+END
+GO
+
+ALTER TABLE tblEMPLOYEE_POSITION_SHIFT
+ADD ShiftLengthInHours AS (dbo.fn_TotalTimeAtShift(EmpPosShiftID))
+GO                                         
