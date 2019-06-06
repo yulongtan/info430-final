@@ -204,7 +204,7 @@ go
 
 -- Computed Columns
 
--- Calculate total price as TotalCost in Line_Item (yt)
+-- Calculate total price as TotalCost in Line_Item
 create function fn_CalculateTotalCost(@PK int)
 returns money 
 as 
@@ -222,6 +222,50 @@ go
 alter table tblLINE_ITEM
 add TotalCost AS (dbo.fn_CalculateTotalCost(LineItemID))
 
+go
+
+-- Calculate total sales for an emmployee as TotalSales
+create function fn_CalculateEmployeeTotalSales(@PK int)
+returns money 
+as 
+begin 
+  declare @ret money = (
+    select LI.Price * LI.Quantity 
+    from tblEMPLOYEE E 
+      join tblJOB J on E.EmployeeID = J.EmployeeID 
+      join tblEMPLOYEE_POSITION_SHIFT EPS on J.JobID = EPS.JobID 
+      join tblORDER O on EPS.EmpPosShiftID = O.EmpPosShiftID
+      join tblLINE_ITEM LI on O.OrderID = LI.OrderID 
+  )
+  return @ret
+end 
+
+go 
+
+alter table tblEMPLOYEE
+add TotalSales as (dbo.fn_CalculateEmployeeTotalSales(EmployeeID))
+
 --------------------------------------------------------------------------------------------------------------------------
 
 -- Views
+
+-- The most phone customer in Washington
+select top 1 count(*) as TotalItemsBought, C.CustFname, C.CustLname
+from tblLINE_ITEM LI 
+  join tblORDER O on LI.OrderID = O.OrderID
+  join tblCUSTOMER C on O.CustID = C.CustID
+  join tblPRODUCT P on LI.ProductID = P.ProductID 
+  join tblPRODUCT_TYPE PT on P.ProductTypeID = PT.ProductTypeID
+where PT.ProductTypeName = 'Phone' and C.CustState = 'Washington'
+order by TotalItemsBought desc
+
+-- All suppliers that have had 20 'iPhone 8' sold within last month
+select *, count(*) as ItemsSold
+from tblSupplier S 
+  join tblPRODUCT P on P.SupplierID = S.SupplierID 
+  join tblPRODUCT_TYPE PT on P.ProductTypeID = PT.ProductTypeID 
+  join tblLINE_ITEM LI on P.ProductID = LI.ProductID 
+  join tblOrder O on LI.OrderID = O.OrderID
+where P.ProductName = 'iPhone 8' 
+and count(*) > 8
+and O.OrderDate > dateadd(m, -1, getdate())
