@@ -1,3 +1,14 @@
+/*
+INFO 430 Final Project - TechStacks
+
+Group 2
+
+- Yulong Tan
+- Kianna Hales
+- Denny Wang
+- Sruthi Dikkala
+*/
+
 -- create database techstacks_v2
 -- use techstacks_v2
 
