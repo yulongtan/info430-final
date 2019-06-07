@@ -283,7 +283,7 @@ from tblSupplier S
   join tblOrder O on LI.OrderID = O.OrderID
 where P.ProductName = 'iPhone 8' 
 and O.OrderDate > dateadd(m, -1, getdate())
-group by S.SupplierID, S.SUpplierName
+group by S.SupplierID, S.SupplierName
 having count(*) > 8
 
 go
@@ -327,6 +327,6 @@ values('Obi-Wan', 'Kenobi', '1979-01-01', '1111', 'Seattle', 'WA', '98109'),
 ('Greg', 'Hay', '1970-01-01', '1111', 'Seattle', 'WA', '98109')
 
 insert into tblJOB 
-values(1, 1, 85000, '2005-01-01'),
-(2, 2, 75000, '2012-01-01'),
-(3, 3, 100000, '2018-01-01')
+values(1, 1, 85000, '2005-01-01', '2050-01-01'),
+(2, 2, 75000, '2012-01-01', '2050-01-01'),
+(3, 3, 100000, '2018-01-01', '2050-01-01')
